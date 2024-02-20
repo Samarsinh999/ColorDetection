@@ -179,9 +179,9 @@ fun calculateAverageColor(image: ImageProxy): Color {
     val pixelStride = image.planes[0].pixelStride
     val rowStride = image.planes[0].rowStride
     val rowPadding = rowStride - pixelStride * image.width
-    val pixels = IntArray(image.width * image.height * 4)
+    val pixels = IntArray(image.width * image.height)
 //    if (buffer.remaining() < pixels.average()) {
-        Log.d("Working", "Working")
+//        Log.d("Working", "Working")
         Log.d("Size of Buffer", buffer.toString())
 //    buffer.rewind()
         var offset = 0
@@ -193,19 +193,21 @@ fun calculateAverageColor(image: ImageProxy): Color {
                             ((buffer.get(offset + 3).toInt() and 0xFF) shl 24)
 
                 pixels[row * image.width + col ] = pixel
-                Log.d("Cal", "${pixels.average()}")
+                val pix = pixels.average()
+                Log.d("Cal", "${ pixels.average()}")
+                pixels.average()
                 offset += pixelStride
             }
             offset += rowPadding
         }
         if (pixels.isNotEmpty()) {
+            Log.d("Working", "Working")
             val red = pixels.map { Color(it).red }.average()
             val green = pixels.map { Color(it).green }.average()
             val blue = pixels.map { Color(it).blue }.average()
 
             return Color(red.toFloat(), green.toFloat(), blue.toFloat())
         } else {
-            // Default color if no pixels are available
             return Color.White
         }
 
