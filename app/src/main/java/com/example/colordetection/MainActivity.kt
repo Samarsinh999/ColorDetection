@@ -1,6 +1,7 @@
 package com.example.colordetection
 
 import android.os.Bundle
+import android.util.Log
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,12 +10,14 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,7 +62,6 @@ fun CameraPreview() {
     var cameraProvider: ProcessCameraProvider? by remember { mutableStateOf(null) }
     var preview: Preview? by remember { mutableStateOf(null) }
     var colorHash by remember { mutableStateOf<String?>(null) }
-
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -70,7 +72,6 @@ fun CameraPreview() {
         cameraProvider = cameraProviderFuture.get()
         val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
         preview = Preview.Builder().build()
-
 
         val imageAnalysis = ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -89,6 +90,7 @@ fun CameraPreview() {
             preview,
             imageAnalysis
         )
+
 
         onDispose {
             cameraProvider?.unbindAll()
@@ -115,6 +117,7 @@ fun CameraPreview() {
 }
 
 fun calculateAverageColor(image: ImageProxy): Color {
+    Log.d("Wroking", "Working")
     val buffer = image.planes[0].buffer
     val pixelStride = image.planes[0].pixelStride
     val rowStride = image.planes[0].rowStride
@@ -131,8 +134,10 @@ fun calculateAverageColor(image: ImageProxy): Color {
                     (buffer.get(offset + 3).toInt() and 0xFF shl 24)
             pixels[row * image.width + col] = pixel
             offset += pixelStride
+            Log.d("RowPadding", Color.Red.red.toString())
         }
         offset += rowPadding
+//        Log.d("RowPadding", offset.toString())
     }
 
     val red = pixels.map { Color(it).red }.average()
