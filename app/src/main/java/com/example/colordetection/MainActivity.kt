@@ -124,83 +124,96 @@ fun CameraPreview() {
     }
 }
 
-fun calculateAverageColor(image: ImageProxy): Color {
-    val buffer = image.planes[0].buffer
-    val pixelStride = image.planes[0].pixelStride
-    val rowStride = image.planes[0].rowStride
-    val rowPadding = rowStride - pixelStride * image.width
-
-    // Ensure that the buffer is large enough to hold the pixel data
-    if (buffer.remaining() < image.width * image.height * 4) {
-        return Color.White
-    }
-
-    var totalRed = 0
-    var totalGreen = 0
-    var totalBlue = 0
-
-    var offset = 0
-    for (row in 0 until image.height) {
-        for (col in 0 until image.width) {
-            val pixel =
-                (buffer.get(offset).toInt() and 0xFF) or
-                        ((buffer.get(offset + 1).toInt() and 0xFF) shl 8) or
-                        ((buffer.get(offset + 2).toInt() and 0xFF) shl 16) or
-                        ((buffer.get(offset + 3).toInt() and 0xFF) shl 24)
-
-            totalRed += (pixel and 0xFF)
-            totalGreen += ((pixel ushr 8) and 0xFF)
-            totalBlue += ((pixel ushr 16) and 0xFF)
-
-            offset += pixelStride
-        }
-        offset += rowPadding
-    }
-
-    val pixelCount = image.width * image.height
-    val averageRed = totalRed / pixelCount
-    val averageGreen = totalGreen / pixelCount
-    val averageBlue = totalBlue / pixelCount
-    Log.d("CalculatePixel", "${pixelCount}")
-
-    return Color(averageRed / 255f, averageGreen / 255f, averageBlue / 255f)
-}
-
 //fun calculateAverageColor(image: ImageProxy): Color {
 //    val buffer = image.planes[0].buffer
 //    val pixelStride = image.planes[0].pixelStride
 //    val rowStride = image.planes[0].rowStride
 //    val rowPadding = rowStride - pixelStride * image.width
 //
-//    val pixels = IntArray(image.width * image.height)
+//    // Ensure that the buffer is large enough to hold the pixel data
+//    if (buffer.remaining() < image.width * image.height * 4) {
+//        return Color.White
+//    }
 //
-//    var offset = 0
+//    var totalRed = 0
+//    var totalGreen = 0
+//    var totalBlue = 0
+//
+//    // Reset buffer position to the beginning
+//    buffer.rewind()
+//
 //    for (row in 0 until image.height) {
 //        for (col in 0 until image.width) {
 //            val pixel =
-//                (buffer.get(offset).toInt() and 0xFF) or
-//                        ((buffer.get(offset + 1).toInt() and 0xFF) shl 8) or
-//                        ((buffer.get(offset + 2).toInt() and 0xFF) shl 16) or
-//                        ((buffer.get(offset + 3).toInt() and 0xFF) shl 24)
+//                (buffer.get().toInt() and 0xFF) or
+//                        ((buffer.get().toInt() and 0xFF) shl 48) or
+//                        ((buffer.get().toInt() and 0xFF) shl 40) or
+//                        ((buffer.get().toInt() and 0xFF) shl 16)
 //
-//            pixels[row * image.width + col] = pixel
-//            Log.d("Cal", "${pixel}")
-//            offset += pixelStride
+//            totalRed += (pixel and 0xFFFF0000.toInt())
+//            totalGreen += ((pixel ushr 8) and 0xFF00FF00.toInt())
+//            totalBlue += ((pixel ushr 16) and 0xFF0000FF.toInt())
+//
+//            // Increment offset based on pixelStride
+//            for (k in 1 until pixelStride) {
+//                buffer.get()
+//            }
 //        }
-//        offset += rowPadding
+//        // Increment offset based on rowPadding
+//        for (k in 0 until rowPadding) {
+//            buffer.get()
+//        }
 //    }
 //
-//    if (pixels.isNotEmpty()) {
-//        val red = pixels.map { Color(it).red }.average()
-//        val green = pixels.map { Color(it).green }.average()
-//        val blue = pixels.map { Color(it).blue }.average()
-//
-//        return Color(red.toFloat(), green.toFloat(), blue.toFloat())
-//    } else {
-//        // Default color if no pixels are available
+//    val pixelCount = image.width * image.height
+//    val averageRed = totalRed / pixelCount
+//    val averageGreen = totalGreen / pixelCount
+//    val averageBlue = totalBlue / pixelCount
+//Log.d("PixelCount", pixelCount.toString())
+//    return Color(averageRed / 255f, averageGreen / 255f, averageBlue / 255f)
+//}
+
+fun calculateAverageColor(image: ImageProxy): Color {
+//    Log.d("Working", "Working")
+    val buffer = image.planes[0].buffer
+    val pixelStride = image.planes[0].pixelStride
+    val rowStride = image.planes[0].rowStride
+    val rowPadding = rowStride - pixelStride * image.width
+    val pixels = IntArray(image.width * image.height * 4)
+//    if (buffer.remaining() < pixels.average()) {
+        Log.d("Working", "Working")
+        Log.d("Size of Buffer", buffer.toString())
+//    buffer.rewind()
+        var offset = 0
+        for (row in 0 until image.height) {
+            for (col in 0 until image.width) {
+                val pixel = (buffer.get(offset).toInt() and 0xFF) or
+                            ((buffer.get(offset + 1).toInt() and 0xFF) shl 8) or
+                            ((buffer.get(offset + 2).toInt() and 0xFF) shl 16) or
+                            ((buffer.get(offset + 3).toInt() and 0xFF) shl 24)
+
+                pixels[row * image.width + col ] = pixel
+                Log.d("Cal", "${pixels.average()}")
+                offset += pixelStride
+            }
+            offset += rowPadding
+        }
+        if (pixels.isNotEmpty()) {
+            val red = pixels.map { Color(it).red }.average()
+            val green = pixels.map { Color(it).green }.average()
+            val blue = pixels.map { Color(it).blue }.average()
+
+            return Color(red.toFloat(), green.toFloat(), blue.toFloat())
+        } else {
+            // Default color if no pixels are available
+            return Color.White
+        }
+
+//    }
+//    else{
 //        return Color.White
 //    }
-//}
+}
 
 fun colorToHex(color: Color): String {
     val red = (color.red * 255).toInt().toString(16).padStart(2, '0')
