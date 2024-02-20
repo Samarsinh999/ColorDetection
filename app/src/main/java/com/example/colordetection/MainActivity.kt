@@ -14,6 +14,7 @@ import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -26,11 +27,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.example.colordetection.ui.theme.ColorDetectionTheme
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.experimental.and
 
 class MainActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
@@ -82,6 +85,11 @@ fun CameraPreview() {
         ) { imageProxy ->
             val averageColor = calculateAverageColor(imageProxy)
             colorHash = colorToHex(averageColor)
+
+//            if (isRed(averageColor) || isGreen(averageColor) || isBlue(averageColor)) {
+//                displayLabelOnCamera(colorHash ?: "")
+//            }
+
             imageProxy.close()
         }
         cameraProvider?.bindToLifecycle(
@@ -116,8 +124,37 @@ fun CameraPreview() {
     }
 }
 
+//fun calculateAverageColor(image: ImageProxy): Color {
+//    val buffer = image.planes[0].buffer
+//    val pixelStride = image.planes[0].pixelStride
+//    val rowStride = image.planes[0].rowStride
+//    val rowPadding = rowStride - pixelStride * image.width
+//
+//    var totalRed = 0
+//    var totalGreen = 0
+//    var totalBlue = 0
+//
+//    var offset = 0
+//    for (row in 0 until image.height) {
+//        for (col in 0 until image.width) {
+//            totalRed += (buffer.get(offset) and 0xFF.toByte())
+//            totalGreen += (buffer.get(offset + 1) and 0xFF.toByte())
+//            totalBlue += (buffer.get(offset + 2) and 0xFF.toByte())
+//
+//            offset += pixelStride
+//        }
+//        offset += rowPadding
+//    }
+//
+//    val pixelCount = image.width * image.height
+//    val averageRed = totalRed / pixelCount
+//    val averageGreen = totalGreen / pixelCount
+//    val averageBlue = totalBlue / pixelCount
+//
+//    return Color(averageRed / 255f, averageGreen / 255f, averageBlue / 255f)
+//}
+
 fun calculateAverageColor(image: ImageProxy): Color {
-    Log.d("Wroking", "Working")
     val buffer = image.planes[0].buffer
     val pixelStride = image.planes[0].pixelStride
     val rowStride = image.planes[0].rowStride
@@ -128,23 +165,28 @@ fun calculateAverageColor(image: ImageProxy): Color {
     var offset = 0
     for (row in 0 until image.height) {
         for (col in 0 until image.width) {
-            val pixel = (buffer.get(offset).toInt() and 0xFF shl 16) or
-                    (buffer.get(offset + 1).toInt() and 0xFF shl 8) or
-                    (buffer.get(offset + 2).toInt() and 0xFF) or
-                    (buffer.get(offset + 3).toInt() and 0xFF shl 24)
+            val pixel =
+                (buffer.get(offset).toInt() and 0xFF) or
+                        ((buffer.get(offset + 1).toInt() and 0xFF) shl 8) or
+                        ((buffer.get(offset + 2).toInt() and 0xFF) shl 16) or
+                        ((buffer.get(offset + 3).toInt() and 0xFF) shl 24)
+            Log.d("Cal", "${((buffer.get(offset + 3).toInt() and 0xFF) shl 24)}")
             pixels[row * image.width + col] = pixel
             offset += pixelStride
-            Log.d("RowPadding", Color.Red.red.toString())
         }
         offset += rowPadding
-//        Log.d("RowPadding", offset.toString())
     }
 
-    val red = pixels.map { Color(it).red }.average()
-    val green = pixels.map { Color(it).green }.average()
-    val blue = pixels.map { Color(it).blue }.average()
+    if (pixels.isNotEmpty()) {
+        val red = pixels.map { Color(it).red }.average()
+        val green = pixels.map { Color(it).green }.average()
+        val blue = pixels.map { Color(it).blue }.average()
 
-    return Color(red.toFloat(), green.toFloat(), blue.toFloat())
+        return Color(red.toFloat(), green.toFloat(), blue.toFloat())
+    } else {
+        // Default color if no pixels are available
+        return Color.White
+    }
 }
 
 fun colorToHex(color: Color): String {
@@ -152,5 +194,28 @@ fun colorToHex(color: Color): String {
     val green = (color.green * 255).toInt().toString(16).padStart(2, '0')
     val blue = (color.blue * 255).toInt().toString(16).padStart(2, '0')
     return "$red$green$blue"
+}
+
+@Composable
+fun displayLabelOnCamera(label: String) {
+    Text(
+        text = label,
+        color = Color.White,
+        modifier = Modifier
+            .padding(16.dp)
+            .background(Color.Black)
+    )
+}
+
+fun isRed(color: Color): Boolean {
+    return color.red > 0.8 && color.green < 0.2 && color.blue < 0.2
+}
+
+fun isGreen(color: Color): Boolean {
+    return color.red < 0.2 && color.green > 0.8 && color.blue < 0.2
+}
+
+fun isBlue(color: Color): Boolean {
+    return color.red < 0.2 && color.green < 0.2 && color.blue > 0.8
 }
 
