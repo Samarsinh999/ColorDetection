@@ -79,6 +79,6 @@ dependencies {
     implementation("androidx.camera:camera-extensions:1.3.1")
     implementation("androidx.compose.foundation:foundation:1.6.1")
     implementation("androidx.camera:camera-view:1.3.1")
-
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
 }
