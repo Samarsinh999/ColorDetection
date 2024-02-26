@@ -90,23 +90,15 @@ fun CameraPreview() {
             ContextCompat.getMainExecutor(context)
         ) { imageProxy ->
             lifecycleOwner.lifecycleScope.launch {
-//                    try {
-//                        averageColor = calculateAverageColor(imageProxy)
-////                        val sepiaColor = applySepiaFilter(averageColor!!)
-////                        backgroundColor = Color(sepiaColor.red, sepiaColor.green, sepiaColor.blue)
-//                        colorHash = colorToHex(averageColor!!)
-//                        Log.d("AverageColor", "Red: ${averageColor!!.red}, Green: ${averageColor!!.green}, Blue: ${averageColor!!.blue}")
                         val colorsList = calculateAverageColor(imageProxy)
+                Log.d("ColorList", colorsList.size.toString())
                         for ((rowIndex, rowColors) in colorsList.withIndex()) {
+                            Log.d("ColorList", "Number of Colors in Row $rowIndex: ${rowColors.size}")
                             for ((colIndex, color) in rowColors.withIndex()) {
                                 Log.d("ColorList", "Color at ($rowIndex, $colIndex): $color")
                             }
                         }
-//                    }catch (e: Exception) {
-//                        e.printStackTrace()
-//                    } finally {
                         imageProxy.close()
-//                    }
             }
         }
 
@@ -156,15 +148,19 @@ suspend fun calculateAverageColor(image: ImageProxy): List<List<Color>> = withCo
         val rowColors = mutableListOf<Color>()
         for (col in 0 until image.width) {
             val offset = row * rowStride + col * pixelStride
-            val pixel =
-                ((buffer.get(offset).toInt() and 0xFF) shl 24) or
-                        ((buffer.get(offset + 1).toInt() and 0xFF) shl 16) or
-                        ((buffer.get(offset + 2).toInt() and 0xFF) shl 8) or
-                        (buffer.get(offset + 3).toInt() and 0xFF)
+            if (offset < buffer.capacity()) {
+                val pixel =
+                    ((buffer.get(offset).toInt() and 0xFF) shl 24) or
+                            ((buffer.get(offset + 1).toInt() and 0xFF) shl 16) or
+                            ((buffer.get(offset + 2).toInt() and 0xFF) shl 8) or
+                            (buffer.get(offset + 3).toInt() and 0xFF)
 
-            val color = Color(pixel)
-            rowColors.add(color)
-            Log.d("Color Details", "Color at offset ($row, $col): $color")
+                val color = Color(pixel)
+                rowColors.add(color)
+                Log.d("Color Details", "Color at offset ($row, $col): $color")
+            } else {
+                Log.e("Color Details", "Error: Index out of bounds at offset $offset")
+            }
         }
         colorsList.add(rowColors)
     }
@@ -172,7 +168,8 @@ suspend fun calculateAverageColor(image: ImageProxy): List<List<Color>> = withCo
 }
 
 
-@RequiresApi(Build.VERSION_CODES.O)
+
+//@RequiresApi(Build.VERSION_CODES.O)
 //suspend fun calculateAverageColor(image: ImageProxy): Color = withContext(Dispatchers.Default) {
 //    val buffer = image.planes[0].buffer
 //    val pixelStride = image.planes[0].pixelStride
