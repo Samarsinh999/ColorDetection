@@ -90,17 +90,23 @@ fun CameraPreview() {
             ContextCompat.getMainExecutor(context)
         ) { imageProxy ->
             lifecycleOwner.lifecycleScope.launch {
-                    try {
-                        averageColor = calculateAverageColor(imageProxy)
-//                        val sepiaColor = applySepiaFilter(averageColor!!)
-//                        backgroundColor = Color(sepiaColor.red, sepiaColor.green, sepiaColor.blue)
-                        colorHash = colorToHex(averageColor!!)
-                        Log.d("AverageColor", "Red: ${averageColor!!.red}, Green: ${averageColor!!.green}, Blue: ${averageColor!!.blue}")
-                    }catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
+//                    try {
+//                        averageColor = calculateAverageColor(imageProxy)
+////                        val sepiaColor = applySepiaFilter(averageColor!!)
+////                        backgroundColor = Color(sepiaColor.red, sepiaColor.green, sepiaColor.blue)
+//                        colorHash = colorToHex(averageColor!!)
+//                        Log.d("AverageColor", "Red: ${averageColor!!.red}, Green: ${averageColor!!.green}, Blue: ${averageColor!!.blue}")
+                        val colorsList = calculateAverageColor(imageProxy)
+                        for ((rowIndex, rowColors) in colorsList.withIndex()) {
+                            for ((colIndex, color) in rowColors.withIndex()) {
+                                Log.d("ColorList", "Color at ($rowIndex, $colIndex): $color")
+                            }
+                        }
+//                    }catch (e: Exception) {
+//                        e.printStackTrace()
+//                    } finally {
                         imageProxy.close()
-                    }
+//                    }
             }
         }
 
@@ -137,8 +143,36 @@ fun CameraPreview() {
 /**
  *
  */
+@RequiresApi(Build.VERSION_CODES.O)
+suspend fun calculateAverageColor(image: ImageProxy): List<List<Color>> = withContext(Dispatchers.Default) {
+    val buffer = image.planes[0].buffer
+    val pixelStride = image.planes[0].pixelStride
+    val rowStride = image.planes[0].rowStride
+    val rowPadding = rowStride - pixelStride * image.width
 
-//@RequiresApi(Build.VERSION_CODES.O)
+    val colorsList = mutableListOf<List<Color>>()
+
+    for (row in 0 until image.height) {
+        val rowColors = mutableListOf<Color>()
+        for (col in 0 until image.width) {
+            val offset = row * rowStride + col * pixelStride
+            val pixel =
+                ((buffer.get(offset).toInt() and 0xFF) shl 24) or
+                        ((buffer.get(offset + 1).toInt() and 0xFF) shl 16) or
+                        ((buffer.get(offset + 2).toInt() and 0xFF) shl 8) or
+                        (buffer.get(offset + 3).toInt() and 0xFF)
+
+            val color = Color(pixel)
+            rowColors.add(color)
+            Log.d("Color Details", "Color at offset ($row, $col): $color")
+        }
+        colorsList.add(rowColors)
+    }
+    return@withContext colorsList
+}
+
+
+@RequiresApi(Build.VERSION_CODES.O)
 //suspend fun calculateAverageColor(image: ImageProxy): Color = withContext(Dispatchers.Default) {
 //    val buffer = image.planes[0].buffer
 //    val pixelStride = image.planes[0].pixelStride
@@ -160,7 +194,7 @@ fun CameraPreview() {
 //                Log.d("Offset", "Offset value: $offset")
 //                offset = rowStride * pixelStride
 //                offset += pixelStride
-//                Log.d("pixeStride", " value: $pixelStride")
+//                Log.d("pixeStride", " value: $offset")
 //            } else {
 //                Log.e("ImageProcessing", "Error: Index out of bounds at offset $offset")
 //                return@withContext Color.White
@@ -207,61 +241,93 @@ fun adjustBrightness(color: Color, factor: Float): Color {
     return Color(outputRed.toInt(), outputGreen.toInt(), outputBlue.toInt())
 }
 
-suspend fun calculateAverageColor(image: ImageProxy): Color = withContext(Dispatchers.Default) {
-    val buffer = image.planes[0].buffer
-    val pixelStride = image.planes[0].pixelStride
-    val rowStride = image.planes[0].rowStride
-    val rowPadding = rowStride - pixelStride * image.width
-    val pixels = IntArray(image.width * image.height)
-    var offset = 0
-//    if (buffer.remaining() < pixels.average()) {
-        for (row in 0 until image.height) {
-            for (col in 0 until image.width) {
-                var offset1 = row * rowStride + col * pixelStride
-//                Log.d("PixelProcessing", "Processing pixel at offset: $offset1, row: $row, col: $col")
-                val pixel =
-                    ((buffer.get(offset1 ++).toInt() and 0xFF) shl 24)or
-                            ((buffer.get(offset1 ++).toInt() and 0xFF) shl 16) or
-                            ((buffer.get(offset1 ++).toInt() and 0xFF) shl 8) or
-                            (buffer.get(offset1).toInt() and 0xFF)
-                pixels[row * image.width + col] = pixel
-                Log.d("PixelProcessing", "Pixel value: $pixel")
-                if (pixels.isNotEmpty()){
-                    val totalRed = pixels.map { Color(it).red }.sum()
-                    val totalGreen = pixels.map { Color(it).green }.sum()
-                    val totalBlue = pixels.map { Color(it).blue }.sum()
-                    Log.d("totalRed", totalRed.toString())
-                    val averageRed = (totalRed / pixels.size)
-                    val averageGreen = (totalGreen / pixels.size)
-                    val averageBlue = (totalBlue / pixels.size)
-
-                    return@withContext Color(averageRed, averageGreen, averageBlue)
-                }
-//               Log.d("Pixel" ,pixels.average().toString())
-                offset1 += pixelStride
-            }
-            offset += rowPadding
-        }
-
-        if (pixels.isNotEmpty())
-//        if (buffer.remaining() < pixels.average())
-        {
-            val totalRed = pixels.map { Color(it).red }.sum()
-            val totalGreen = pixels.map { Color(it).green }.sum()
-            val totalBlue = pixels.map { Color(it).blue }.sum()
-            Log.d("totalRed", totalRed.toString())
-            val averageRed = (totalRed / pixels.size)
-            val averageGreen = (totalGreen / pixels.size)
-            val averageBlue = (totalBlue / pixels.size)
-
-            return@withContext Color(averageRed, averageGreen, averageBlue)
-        } else {
-            return@withContext Color.White
-        }
-//    } else {
-//        return@withContext Color.White
+//suspend fun calculateAverageColor(image: ImageProxy): Color = withContext(Dispatchers.Default) {
+//    val buffer = image.planes[0].buffer
+//    val pixelStride = image.planes[0].pixelStride
+//    val rowStride = image.planes[0].rowStride
+//    val rowPadding = rowStride - pixelStride * image.width
+//    val pixels = IntArray(image.width * image.height)
+//    var offset = 0
+////    if (buffer.remaining() < pixels.average()) {
+//        for (row in 0 until image.height) {
+//            for (col in 0 until image.width) {
+//                var offset1 = row * rowStride + col * pixelStride
+////                Log.d("PixelProcessing", "Processing pixel at offset: $offset1, row: $row, col: $col")
+//                val pixel =
+//                    ((buffer.get(offset1 ++).toInt() and 0xFF) shl 24)or
+//                            ((buffer.get(offset1 ++).toInt() and 0xFF) shl 16) or
+//                            ((buffer.get(offset1 ++).toInt() and 0xFF) shl 8) or
+//                            (buffer.get(offset1).toInt() and 0xFF)
+//                pixels[row * image.width + col] = pixel
+//                Log.d("PixelProcessing", "Pixel value: $pixel")
+//                run {
+//                    val totalRed = pixels.map { Color(it).red }.sum()
+//                    val totalGreen = pixels.map { Color(it).green }.sum()
+//                    val totalBlue = pixels.map { Color(it).blue }.sum()
+//                    Log.d("totalRed", totalRed.toString())
+//                    val averageRed = (totalRed / pixels.size)
+//                    val averageGreen = (totalGreen / pixels.size)
+//                    val averageBlue = (totalBlue / pixels.size)
+//
+//                    return@withContext Color(averageRed, averageGreen, averageBlue)
+//                }
+////               Log.d("Pixel" ,pixels.average().toString())
+//                offset1 += pixelStride
+//            }
+//            offset += rowPadding
+//        }
+//
+//    run {
+//        val totalRed = pixels.map { Color(it).red }.sum()
+//        val totalGreen = pixels.map { Color(it).green }.sum()
+//        val totalBlue = pixels.map { Color(it).blue }.sum()
+//        Log.d("totalRed", totalRed.toString())
+//        val averageRed = (totalRed / pixels.size)
+//        val averageGreen = (totalGreen / pixels.size)
+//        val averageBlue = (totalBlue / pixels.size)
+//
+//        return@withContext Color(averageRed, averageGreen, averageBlue)
 //    }
-}
+////    } else {
+////        return@withContext Color.White
+////    }
+//}
+
+//suspend fun calculateAverageColor(image: ImageProxy): Color = withContext(Dispatchers.Default) {
+//    val buffer = image.planes[0].buffer
+//    val pixelStride = image.planes[0].pixelStride
+//    val rowStride = image.planes[0].rowStride
+//    val rowPadding = rowStride - pixelStride * image.width
+//
+//    val pixels = IntArray(image.width * image.height)
+//    var offset = rowStride + pixelStride
+//
+//    for (row in 0 until image.height) {
+//        for (col in 0 until image.width) {
+////            var offset1 = row * rowStride + col * pixelStride
+//            val pixel =
+//                ((buffer.get(offset++).toInt() and 0xFF) shl 24) or
+//                        ((buffer.get(offset++).toInt() and 0xFF) shl 16) or
+//                        ((buffer.get(offset++).toInt() and 0xFF) shl 8) or
+//                        (buffer.get(offset).toInt() and 0xFF)
+//
+//            pixels[row * image.width+ col] = pixel
+//            Log.d("PixelProcessing", "Pixel value: ${pixel}")
+//        }
+//        offset += rowPadding
+//    }
+//
+//    val totalRed = pixels.map { Color(it).red }.sum()
+//    val totalGreen = pixels.map { Color(it).green }.sum()
+//    val totalBlue = pixels.map { Color(it).blue }.sum()
+//    Log.d("totalRed", totalRed.toString())
+//
+//    val averageRed = (totalRed / pixels.size)
+//    val averageGreen = (totalGreen / pixels.size)
+//    val averageBlue = (totalBlue / pixels.size)
+//
+//    return@withContext Color(averageRed, averageGreen, averageBlue)
+//}
 
 fun colorToHex(color: Color): String {
     val red = (color.red * 255).toInt().toString(16).padStart(2, '0')
